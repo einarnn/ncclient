@@ -215,7 +215,7 @@ class Manager(object):
                    timeout=self._timeout,
                    raise_mode=self._raise_mode).request(*args, **kwds)
 
-    def locked(self, target):
+    def locked(self, target, blocking=False, retries=0, interval=0.01):
         """Returns a context manager for a lock on a datastore, where
         *target* is the name of the configuration datastore to lock, e.g.::
 
@@ -230,7 +230,7 @@ class Manager(object):
             finally:
                 m.unlock("running")
         """
-        return operations.LockContext(self._session, self._device_handler, target)
+        return operations.LockContext(self._session, self._device_handler, target, blocking, retries, interval)
 
     def scp(self):
         return self._session.scp()
