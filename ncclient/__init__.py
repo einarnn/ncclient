@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = (0,5,3)
+__version__ = (0,6,12)
 
 import sys
 
-if sys.version_info < (2, 7):
-    raise RuntimeError('You need Python 2.7+ for this module.')
+if sys.version_info < (3, 5):
+    raise RuntimeError('You need Python 3.5+ for this module.')
 
 class NCClientError(Exception):
     "Base type for all NCClient errors"
     pass
 
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+from . import _version
+__version__ = _version.get_versions()['version']

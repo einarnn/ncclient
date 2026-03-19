@@ -28,13 +28,14 @@ class HuaweiyangDeviceHandler(DefaultDeviceHandler):
     """
     _EXEMPT_ERRORS = []
 
-    def __init__(self, device_params):
-        super(HuaweiyangDeviceHandler, self).__init__(device_params)
+    def __init__(self, device_params, ignore_errors=None):
+        super(HuaweiyangDeviceHandler, self).__init__(device_params, ignore_errors)
 
     def get_capabilities(self):
         # Just need to replace a single value in the default capabilities
         c = []
         c.append('urn:ietf:params:netconf:base:1.0')
+        c.append('urn:ietf:params:netconf:base:1.1')
         
         return c
 

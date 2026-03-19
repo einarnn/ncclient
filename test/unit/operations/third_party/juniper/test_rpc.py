@@ -1,7 +1,10 @@
 from ncclient.operations.third_party.juniper.rpc import *
 import json
 import unittest
-from mock import patch
+try:
+    from unittest.mock import patch  # Python 3.4 and later
+except ImportError:
+    from mock import patch
 from ncclient import manager
 import ncclient.manager
 import ncclient.transport
@@ -45,6 +48,19 @@ class TestRPC(unittest.TestCase):
         call = mock_request.call_args_list[0][0][0]
         self.assertEqual(call.tag, node.tag)
         self.assertEqual(call.attrib, node.attrib)
+
+    @patch('ncclient.transport.SSHSession')
+    @patch('ncclient.operations.third_party.juniper.rpc.RPC._request')
+    def test_getconf_text_sets_huge_tree(self, mock_request, mock_session):
+        device_handler = manager.make_device_handler({'name': 'junos'})
+        session = ncclient.transport.SSHSession(device_handler)
+        obj = GetConfiguration(
+            session,
+            device_handler,
+            raise_mode=RaiseMode.ALL)
+        obj.huge_tree = False
+        obj.request(format='text')
+        self.assertTrue(obj.huge_tree)
 
     @patch('ncclient.transport.SSHSession')
     @patch('ncclient.operations.third_party.juniper.rpc.RPC._request')
@@ -147,7 +163,7 @@ class TestRPC(unittest.TestCase):
             raise_mode=RaiseMode.ALL)
         obj.request(rollback=2)
         node = new_ele(
-            'get-configuration', {'compare': 'rollback', 'rollback': str(2)})
+            'get-configuration', {'compare': 'rollback', 'rollback': str(2), 'format': 'text'})
         call = mock_request.call_args_list[0][0][0]
         self.assertEqual(call.tag, node.tag)
         self.assertEqual(call.attrib, node.attrib)
@@ -228,6 +244,9 @@ class TestRPC(unittest.TestCase):
         call = ElementTree.tostring(call)
         self.assertEqual(call, xml)
 
+        obj.request(check=True)
+        self.assertEqual(call, xml)
+
     @patch('ncclient.transport.SSHSession')
     @patch('ncclient.operations.third_party.juniper.rpc.RPC._request')
     @patch('ncclient.operations.third_party.juniper.rpc.RPC._assert')
@@ -257,3 +276,19 @@ class TestRPC(unittest.TestCase):
         self.assertRaises(NCClientError,
             obj.request, at_time="1111-11-11 00:00:00", synchronize=True,
                           confirmed=True)
+
+    @patch('ncclient.transport.SSHSession')
+    @patch('ncclient.operations.third_party.juniper.rpc.RPC._request')
+    @patch('ncclient.operations.third_party.juniper.rpc.RPC._assert')
+    def test_rollback(self, mock_assert, mock_request, mock_session):
+        mock_request.return_value = 'junos'
+        expected = 'junos'
+        # mock_session.server_capabilities.return_value = [':candidate']
+        device_handler = manager.make_device_handler({'name': 'junos'})
+        session = ncclient.transport.SSHSession(device_handler)
+        obj = Rollback(session, device_handler, raise_mode=RaiseMode.ALL)
+        actual = obj.request()
+        self.assertEqual(expected, actual)
+
+        actual = obj.request(rollback=1)
+        self.assertEqual(expected, actual)

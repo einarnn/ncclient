@@ -1,9 +1,10 @@
 import unittest
+from unittest.mock import patch
+
+import paramiko
+
 from ncclient.devices.junos import *
 import ncclient.transport
-from mock import patch
-import paramiko
-import sys
 
 xml = '''<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
         <xsl:output method="xml" indent="no"/>
@@ -42,6 +43,17 @@ xml3 = """<rpc-reply xmlns:junos="http://xml.juniper.net/junos/12.1X46/junos">
 <ok/>
 </rpc-reply>"""
 
+xml4 = """<rpc-reply>
+<operation>commit</operation>
+<name>reX</name>
+<commit-success/>
+<ok/>
+</rpc-reply>
+<rpc-error>
+<message>commit failure</message>
+</rpc-error>
+<hello>greeting!</hello>"""
+
 
 class TestJunosDevice(unittest.TestCase):
 
@@ -79,11 +91,17 @@ class TestJunosDevice(unittest.TestCase):
         self.assertEqual(dict, self.obj.add_additional_operations())
 
     def test_transform_reply(self):
-        if sys.version >= '3':
-            reply = xml.encode('utf-8')
-        else:
-            reply = xml
+        reply = xml.encode('utf-8')
         self.assertEqual(self.obj.transform_reply(), reply)
 
     def test_perform_quality_check(self):
         self.assertFalse(self.obj.perform_qualify_check())
+
+    def test_handle_raw_dispatch(self):
+        self.assertFalse(self.obj.handle_raw_dispatch(xml))
+
+        expected = re.sub(r'<ok/>', '</routing-engine>\n<ok/>', xml3)
+        self.assertEqual(expected, self.obj.handle_raw_dispatch(xml3))
+
+        expected = 'undefined: not an error message in the reply. Enable debug'
+        self.assertEqual(expected, str(self.obj.handle_raw_dispatch(xml4)))

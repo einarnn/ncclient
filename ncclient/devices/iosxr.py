@@ -24,13 +24,10 @@ class IosxrDeviceHandler(DefaultDeviceHandler):
     Cisco IOS-XR handler for device specific information.
 
     """
-    def __init__(self, device_params):
-        super(IosxrDeviceHandler, self).__init__(device_params)
+    def __init__(self, device_params, ignore_errors=None):
+        super(IosxrDeviceHandler, self).__init__(device_params, ignore_errors)
 
     def add_additional_ssh_connect_params(self, kwargs):
-        kwargs['allow_agent']   = False
-        kwargs['look_for_keys'] = False
-        kwargs['hostkey_verify'] = False
         kwargs['unknown_host_cb'] = iosxr_unknown_host_cb
 
     def perform_qualify_check(self):

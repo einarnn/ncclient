@@ -22,11 +22,11 @@ All device-specific handlers derive from the DefaultDeviceHandler, which impleme
 generic information needed for interaction with a Netconf server.
 
 """
-import sys
-if sys.version >= '3':
-    xrange = range
 
-class DefaultDeviceHandler(object):
+from ncclient.transport.parser import DefaultXMLParser
+
+
+class DefaultDeviceHandler:
     """
     Default handler for device specific information.
 
@@ -37,8 +37,26 @@ class DefaultDeviceHandler(object):
     # match. All comparisons are case insensitive.
     _EXEMPT_ERRORS = []
 
-    def __init__(self, device_params=None):
+    _BASE_CAPABILITIES = [
+            "urn:ietf:params:netconf:base:1.0",
+            "urn:ietf:params:netconf:base:1.1",
+            "urn:ietf:params:netconf:capability:writable-running:1.0",
+            "urn:ietf:params:netconf:capability:candidate:1.0",
+            "urn:ietf:params:netconf:capability:confirmed-commit:1.0",
+            "urn:ietf:params:netconf:capability:rollback-on-error:1.0",
+            "urn:ietf:params:netconf:capability:startup:1.0",
+            "urn:ietf:params:netconf:capability:url:1.0?scheme=http,ftp,file,https,sftp",
+            "urn:ietf:params:netconf:capability:validate:1.0",
+            "urn:ietf:params:netconf:capability:xpath:1.0",
+            "urn:ietf:params:netconf:capability:notification:1.0",
+            "urn:ietf:params:netconf:capability:interleave:1.0",
+            "urn:ietf:params:netconf:capability:with-defaults:1.0"
+    ]
+
+    def __init__(self, device_params=None, ignore_errors=None):
         self.device_params = device_params
+        self.capabilities = []
+        self._EXEMPT_ERRORS = ignore_errors or self._EXEMPT_ERRORS
         # Turn all exempt errors into lower case, since we don't want those comparisons
         # to be case sensitive later on. Sort them into exact match, wildcard start,
         # wildcard end, and full wildcard categories, depending on whether they start
@@ -47,7 +65,7 @@ class DefaultDeviceHandler(object):
         self._exempt_errors_startwith_wildcard_match = []
         self._exempt_errors_endwith_wildcard_match = []
         self._exempt_errors_full_wildcard_match = []
-        for i in xrange(len(self._EXEMPT_ERRORS)):
+        for i in range(len(self._EXEMPT_ERRORS)):
             e = self._EXEMPT_ERRORS[i].lower()
             if e.startswith("*"):
                 if e.endswith("*"):
@@ -70,6 +88,23 @@ class DefaultDeviceHandler(object):
         """
         pass
 
+    def add_additional_netconf_params(self, kwargs):
+        """Add additional NETCONF parameters
+
+        Accept a keyword-argument dictionary to add additional NETCONF
+        parameters that may be in addition to those specified by the
+        default and device specific handlers.
+
+        Currently, only additional client specified capabilities are
+        supported and will be appended to default and device specific
+        capabilities.
+
+        Args:
+            kwargs: A dictionary of specific NETCONF parameters to
+                apply in addition to those derived by default and
+                device specific handlers.
+        """
+        self.capabilities = kwargs.pop("capabilities", [])
 
     def get_capabilities(self):
         """
@@ -80,22 +115,7 @@ class DefaultDeviceHandler(object):
         as needed.
 
         """
-        return [
-            "urn:ietf:params:netconf:base:1.0",
-            "urn:ietf:params:netconf:base:1.1",
-            "urn:ietf:params:netconf:capability:writable-running:1.0",
-            "urn:ietf:params:netconf:capability:candidate:1.0",
-            "urn:ietf:params:netconf:capability:confirmed-commit:1.0",
-            "urn:ietf:params:netconf:capability:rollback-on-error:1.0",
-            "urn:ietf:params:netconf:capability:startup:1.0",
-            "urn:ietf:params:netconf:capability:url:1.0?scheme=http,ftp,file,https,sftp",
-            "urn:ietf:params:netconf:capability:validate:1.0",
-            "urn:ietf:params:netconf:capability:xpath:1.0",
-            "urn:ietf:params:netconf:capability:notification:1.0",
-            "urn:liberouter:params:netconf:capability:power-control:1.0",
-            "urn:ietf:params:netconf:capability:interleave:1.0",
-            "urn:ietf:params:netconf:capability:with-defaults:1.0"
-        ]
+        return self._BASE_CAPABILITIES + self.capabilities
 
     def get_xml_base_namespace_dict(self):
         """
@@ -218,6 +238,39 @@ class DefaultDeviceHandler(object):
     def handle_connection_exceptions(self, sshsession):
         return False
 
+    def reply_parsing_error_transform(self, reply_cls):
+        """
+        Hook for working around bugs in replies from devices (the root element can be "fixed")
+
+        :param reply_cls: the RPCReply class that is parsing the reply 'root' xml element
+
+        :return: transform function for the 'root' xml element of the RPC reply in case the normal parsing fails
+        """
+        # No transformation by default
+        return None
 
     def transform_reply(self):
         return False
+
+    def transform_edit_config(self, node):
+        """
+        Hook for working around bugs in devices that cannot deal with
+        standard config payloads for edits. This will be called
+        in EditConfig.request just before the request is submitted,
+        meaning it will get an XML tree rooted at edit-config.
+
+        :param node: the XML tree for edit-config
+
+        :return: either the original XML tree if no changes made or a modified XML tree
+        """
+        return node
+
+    def get_xml_parser(self, session):
+        """
+        vendor can chose which parser to use for RPC reply response.
+        Default being DOM
+
+        :param session: ssh session object
+        :return: default DOM parser
+        """
+        return DefaultXMLParser(session)

@@ -14,18 +14,64 @@
 
 "Transport layer"
 
-from ncclient.transport.session import Session, SessionListener
-from ncclient.transport.ssh import SSHSession
+import sys
+from importlib.metadata import metadata, PackageNotFoundError
+
+from ncclient.transport.session import Session, SessionListener, NetconfBase
 from ncclient.transport.errors import *
+
+
+def __getattr__(name):
+    if name == 'SSHSession':
+        from ncclient.transport.ssh import SSHSession
+        return SSHSession
+    elif name == 'TLSSession':
+        from ncclient.transport.tls import TLSSession
+        return TLSSession
+    elif name == 'UnixSocketSession':
+        #
+        # Windows does not support Unix domain sockets; assume all other platforms do
+        #
+        if sys.platform != 'win32':
+            try:
+                from ncclient.transport.unixSocket import UnixSocketSession
+                return UnixSocketSession
+            except Exception:
+                pass
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 __all__ = [
     'Session',
     'SessionListener',
-    'SSHSession',
     'TransportError',
     'AuthenticationError',
     'SessionCloseError',
+    'NetconfBase',
     'SSHError',
-    'SSHUnknownHostError'
-
+    'SSHUnknownHostError',
+    'SSHSession',
+    'TLSSession',
+    'UnixSocketSession',
 ]
+
+#
+# Windows does not support Unix domain sockets; assume all other platforms do
+#
+if sys.platform != 'win32':
+    try:
+        from ncclient.transport.unixSocket import UnixSocketSession
+        __all__.append('UnixSocketSession')
+    except Exception:
+        pass
+
+#
+# check if ssh-python is installed
+#
+try:
+    metadata('ssh-python')
+except PackageNotFoundError:
+    pass
+else:
+    from ncclient.transport.libssh import LibSSHSession
+    __all__.append('LibSSHSession')

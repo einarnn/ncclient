@@ -16,13 +16,13 @@ Base types
 SSH session implementation
 --------------------------
 
-.. automethod:: ssh.default_unknown_host_cb
+.. autofunction:: ncclient.transport.ssh.default_unknown_host_cb
 
-.. autoclass:: SSHSession
+.. autoclass:: ncclient.transport.ssh.SSHSession
     :show-inheritance:
     :members: load_known_hosts, close, transport
 
-    .. automethod:: connect(host[, port=830, timeout=None, unknown_host_cb=default_unknown_host_cb, username=None, password=None, key_filename=None, allow_agent=True, hostkey_verify=True, hostkey=None, look_for_keys=True, ssh_config=None])
+    .. automethod:: connect(host[, port=830, timeout=None, unknown_host_cb=default_unknown_host_cb, username=None, password=None, key_filename=None, allow_agent=True, hostkey_verify=True, hostkey=None, look_for_keys=True, ssh_config=None, bind_addr=None])
 
 Errors
 ------
